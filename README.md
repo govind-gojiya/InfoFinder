@@ -13,7 +13,8 @@ A powerful RAG (Retrieval-Augmented Generation) application built with Streamlit
 - **🔑 Personal API Keys**: Users provide their own Groq API key (free tier available)
 - **📄 PDF Processing**: Extract text, tables, and images from PDF documents
 - **🔍 Hybrid Search**: Combines semantic (vector) search with keyword (BM25) search
-- **🎯 RRF Fusion**: Reciprocal Rank Fusion for optimal result combination
+- **🚀 Multi-Query Expansion**: Generates 5 similar queries and fuses results for better retrieval
+- **🎯 RRF Fusion**: Reciprocal Rank Fusion at multiple levels for optimal result combination
 - **📊 Cross-Encoder Reranking**: Improved relevance with neural reranking
 - **💬 Chat History**: Persistent chat sessions like ChatGPT
 - **🆓 Free LLM Support**: Works with Groq (free cloud) or Ollama (free local backup)
@@ -83,6 +84,7 @@ That's it! You're ready to start chatting with your documents.
 ### Settings
 - Update your Groq API key anytime
 - Switch to Ollama for offline use (backup option)
+- Toggle multi-query expansion on/off
 - Adjust search settings (results count, reranking)
 
 ## 🏗️ Architecture
@@ -145,10 +147,41 @@ Edit `config.py` or use environment variables:
 - Stored in ChromaDB for vector search
 - Indexed with BM25 for keyword search
 
-### 4. Retrieval
-- **Vector Search**: Semantic similarity using embeddings
-- **Keyword Search**: BM25 algorithm for exact matches
-- **RRF Fusion**: Combines both rankings optimally
+### 4. Multi-Query Expansion (New!)
+When a user asks a question:
+1. **Query Generation**: LLM generates 5 similar/alternative versions of the question
+2. **Parallel Search**: Each query runs through vector + keyword search
+3. **First RRF**: Each query's vector and keyword results are fused with RRF
+4. **Second RRF**: All 5 query results are combined with another RRF pass
+
+This multi-perspective approach significantly improves retrieval quality!
+
+```
+User Query
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│ LLM generates 5 similar queries             │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│ For each query:                             │
+│   ├── Vector Search → Results               │
+│   ├── Keyword Search → Results              │
+│   └── RRF Fusion → Query Results            │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│ RRF across all 5 query results              │
+└─────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────┐
+│ Cross-Encoder Reranking (final top results) │
+└─────────────────────────────────────────────┘
+```
 
 ### 5. Reranking
 - Cross-encoder (`ms-marco-MiniLM-L-6-v2`) scores query-document pairs

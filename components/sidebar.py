@@ -237,6 +237,13 @@ def _render_settings():
         st.markdown("---")
         st.markdown("**Search Settings**")
         
+        use_multi_query = st.checkbox(
+            "Multi-query expansion",
+            value=st.session_state.get("use_multi_query", True),
+            help="Generate 5 similar queries and combine results using RRF for better retrieval"
+        )
+        st.session_state.use_multi_query = use_multi_query
+        
         top_k = st.slider(
             "Results to retrieve",
             min_value=3,

@@ -211,6 +211,106 @@ class HybridSearchService:
         
         return combined_results, score_details
     
+    def multi_query_search(
+        self,
+        queries: list[str],
+        top_k: int = None
+    ) -> list[SearchResult]:
+        """
+        Perform multi-query search with RRF fusion across all query results.
+        
+        For each query:
+        1. Perform vector search
+        2. Perform keyword search
+        3. Apply RRF to combine vector + keyword results
+        
+        Then apply RRF again across all query results.
+        
+        Args:
+            queries: List of queries (original + similar queries)
+            top_k: Number of final results to return
+            
+        Returns:
+            List of SearchResult objects after multi-query RRF fusion
+        """
+        top_k = top_k or config.TOP_K_RETRIEVAL
+        
+        if not queries:
+            return []
+        
+        # If only one query, use regular search
+        if len(queries) == 1:
+            return self.search(queries[0], top_k=top_k)
+        
+        # Collect RRF results for each query
+        all_query_results: list[list[SearchResult]] = []
+        
+        for query in queries:
+            # Get hybrid search results for this query (already RRF fused)
+            query_results = self.search(query, top_k=top_k * 2)
+            if query_results:
+                all_query_results.append(query_results)
+        
+        if not all_query_results:
+            return []
+        
+        # Apply RRF fusion across all query results
+        final_results = self._multi_query_rrf_fusion(all_query_results, top_k)
+        
+        return final_results
+    
+    def _multi_query_rrf_fusion(
+        self,
+        query_results_list: list[list[SearchResult]],
+        top_k: int
+    ) -> list[SearchResult]:
+        """
+        Apply RRF fusion across multiple query results.
+        
+        Each query's results are treated as a separate ranking list.
+        
+        Args:
+            query_results_list: List of results from each query
+            top_k: Number of results to return
+            
+        Returns:
+            Combined and sorted list of SearchResult objects
+        """
+        # Calculate RRF scores across all query results
+        rrf_scores: dict[str, float] = defaultdict(float)
+        doc_map: dict[str, Document] = {}
+        
+        # Weight for each query (equal weight for all queries)
+        num_queries = len(query_results_list)
+        query_weight = 1.0 / num_queries
+        
+        # Process results from each query
+        for query_results in query_results_list:
+            for rank, result in enumerate(query_results, start=1):
+                doc_id = result.document.id
+                # RRF score contribution from this query
+                rrf_score = query_weight * (1.0 / (self.rrf_k + rank))
+                rrf_scores[doc_id] += rrf_score
+                doc_map[doc_id] = result.document
+        
+        # Sort by combined RRF score
+        sorted_doc_ids = sorted(
+            rrf_scores.keys(),
+            key=lambda x: rrf_scores[x],
+            reverse=True
+        )[:top_k]
+        
+        # Create final results
+        results = []
+        for doc_id in sorted_doc_ids:
+            results.append(SearchResult(
+                document=doc_map[doc_id],
+                score=rrf_scores[doc_id],
+                search_type="multi_query_hybrid"
+            ))
+        
+        return results
+    
     def get_document(self, doc_id: str) -> Optional[Document]:
         """Get a document by ID."""
         return self.vector_store.get_document(doc_id)

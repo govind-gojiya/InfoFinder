@@ -245,77 +245,104 @@ def _render_chat_input(
         
         # Generate response
         with st.chat_message("assistant", avatar="🤖"):
-            with st.spinner("Thinking..."):
-                try:
-                    # Search for relevant documents
-                    top_k = st.session_state.get("top_k", 10)
-                    search_results = hybrid_search.search(prompt, top_k=top_k)
+            try:
+                status_placeholder = st.empty()
+                top_k = st.session_state.get("top_k", 10)
+                use_multi_query = st.session_state.get("use_multi_query", True)
+                similar_queries = [prompt]  # Default: just the original query
+                
+                if use_multi_query:
+                    # Step 1: Generate similar queries for multi-query retrieval
+                    status_placeholder.markdown("🔍 *Generating search queries...*")
+                    similar_queries = llm_service.generate_similar_queries(prompt, num_queries=5)
                     
-                    # Rerank if enabled
-                    if st.session_state.get("use_reranking", True) and search_results:
-                        search_results = reranker.rerank(
-                            prompt, search_results, top_k=5
-                        )
-                    
-                    # Format context
-                    context = llm_service.format_context(search_results)
-                    
-                    # Get conversation history
-                    conversation_history = chat.get_conversation_history(max_messages=6)
-                    
-                    # Generate response with streaming
-                    response_placeholder = st.empty()
-                    full_response = ""
-                    
-                    for chunk in llm_service.generate_response_stream(
-                        question=prompt,
-                        context=context,
-                        conversation_history=conversation_history
-                    ):
-                        full_response += chunk
-                        response_placeholder.markdown(full_response + "▌")
-                    
-                    response_placeholder.markdown(full_response)
-                    
-                    # Show sources
-                    if search_results:
-                        with st.expander("📚 Sources", expanded=False):
-                            for i, result in enumerate(search_results[:5], 1):
-                                st.markdown(
-                                    f"**Source {i}** - {result.document.source_file} "
-                                    f"(Page {result.document.page_number})"
-                                )
-                                st.markdown(
-                                    f"<div style='background: #21262d; padding: 0.75rem; "
-                                    f"border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.5rem; "
-                                    f"color: #e6edf3; border: 1px solid #30363d; line-height: 1.5;'>"
-                                    f"{result.document.content[:300]}...</div>",
-                                    unsafe_allow_html=True
-                                )
-                    
-                    # Save assistant message
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": full_response
-                    })
-                    chat_manager.add_message(
-                        chat.id, MessageRole.ASSISTANT,
-                        full_response, search_results
+                    # Step 2: Multi-query search with RRF fusion
+                    status_placeholder.markdown(f"🔎 *Searching with {len(similar_queries)} queries...*")
+                    search_results = hybrid_search.multi_query_search(
+                        similar_queries, 
+                        top_k=top_k
                     )
-                    
-                    # Update chat title if this is the first message
-                    if len(st.session_state.messages) == 2:
-                        try:
-                            new_title = llm_service.generate_chat_title(prompt)
-                            chat_manager.update_chat_title(chat.id, new_title)
-                        except Exception:
-                            pass
-                    
-                except Exception as e:
-                    error_msg = f"Error generating response: {str(e)}"
-                    st.error(error_msg)
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": f"❌ {error_msg}"
-                    })
+                else:
+                    # Standard single-query hybrid search
+                    status_placeholder.markdown("🔎 *Searching documents...*")
+                    search_results = hybrid_search.search(prompt, top_k=top_k)
+                
+                # Step 3: Rerank the final results if enabled
+                if st.session_state.get("use_reranking", True) and search_results:
+                    status_placeholder.markdown("📊 *Reranking results...*")
+                    search_results = reranker.rerank(
+                        prompt, search_results, top_k=5
+                    )
+                
+                # Clear status
+                status_placeholder.empty()
+                
+                # Show the queries used (collapsed) - only if multi-query was used
+                if use_multi_query and len(similar_queries) > 1:
+                    with st.expander("🔍 Search Queries Used", expanded=False):
+                        for i, q in enumerate(similar_queries, 1):
+                            prefix = "**Original:**" if i == 1 else f"**Query {i}:**"
+                            st.markdown(f"{prefix} {q}")
+                
+                # Format context
+                context = llm_service.format_context(search_results)
+                
+                # Get conversation history
+                conversation_history = chat.get_conversation_history(max_messages=6)
+                
+                # Generate response with streaming
+                response_placeholder = st.empty()
+                full_response = ""
+                
+                for chunk in llm_service.generate_response_stream(
+                    question=prompt,
+                    context=context,
+                    conversation_history=conversation_history
+                ):
+                    full_response += chunk
+                    response_placeholder.markdown(full_response + "▌")
+                
+                response_placeholder.markdown(full_response)
+                
+                # Show sources
+                if search_results:
+                    with st.expander("📚 Sources", expanded=False):
+                        for i, result in enumerate(search_results[:5], 1):
+                            st.markdown(
+                                f"**Source {i}** - {result.document.source_file} "
+                                f"(Page {result.document.page_number})"
+                            )
+                            st.markdown(
+                                f"<div style='background: #21262d; padding: 0.75rem; "
+                                f"border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.5rem; "
+                                f"color: #e6edf3; border: 1px solid #30363d; line-height: 1.5;'>"
+                                f"{result.document.content[:300]}...</div>",
+                                unsafe_allow_html=True
+                            )
+                
+                # Save assistant message
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": full_response
+                })
+                chat_manager.add_message(
+                    chat.id, MessageRole.ASSISTANT,
+                    full_response, search_results
+                )
+                
+                # Update chat title if this is the first message
+                if len(st.session_state.messages) == 2:
+                    try:
+                        new_title = llm_service.generate_chat_title(prompt)
+                        chat_manager.update_chat_title(chat.id, new_title)
+                    except Exception:
+                        pass
+                
+            except Exception as e:
+                error_msg = f"Error generating response: {str(e)}"
+                st.error(error_msg)
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"❌ {error_msg}"
+                })
 

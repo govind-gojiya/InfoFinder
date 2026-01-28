@@ -376,6 +376,59 @@ Respond with ONLY the title, nothing else."""
             # Fallback to truncated message
             return first_message[:30] + "..." if len(first_message) > 30 else first_message
     
+    def generate_similar_queries(self, query: str, num_queries: int = 5) -> list[str]:
+        """
+        Generate similar/related queries for multi-query retrieval.
+        
+        This helps improve retrieval by searching with multiple perspectives
+        of the same question.
+        
+        Args:
+            query: Original user query
+            num_queries: Number of similar queries to generate
+            
+        Returns:
+            List of similar queries (including the original)
+        """
+        prompt = f"""Given the following user question, generate {num_queries - 1} alternative versions of this question that could help retrieve relevant information from a document database.
+
+The alternative questions should:
+1. Rephrase the original question differently
+2. Break down complex questions into simpler parts
+3. Use synonyms or related terms
+4. Approach the question from different angles
+
+Original question: "{query}"
+
+Return ONLY the alternative questions, one per line, without numbering or bullets. Do not include the original question."""
+
+        try:
+            response = self.provider.generate(
+                prompt=prompt,
+                temperature=0.7,
+                max_tokens=300
+            )
+            
+            # Parse the response - split by newlines and clean up
+            similar_queries = []
+            for line in response.strip().split('\n'):
+                line = line.strip()
+                # Remove common prefixes like "1.", "-", "*", etc.
+                line = line.lstrip('0123456789.-)*• ')
+                if line and len(line) > 5:  # Filter out very short lines
+                    similar_queries.append(line)
+            
+            # Limit to requested number and always include original first
+            similar_queries = similar_queries[:num_queries - 1]
+            
+            # Return original query first, then the generated ones
+            return [query] + similar_queries
+            
+        except Exception as e:
+            # On error, just return the original query
+            print(f"Error generating similar queries: {e}")
+            return [query]
+    
     @staticmethod
     def format_context(search_results) -> str:
         """

@@ -443,6 +443,9 @@ def init_session_state():
     if "use_reranking" not in st.session_state:
         st.session_state.use_reranking = True
     
+    if "use_multi_query" not in st.session_state:
+        st.session_state.use_multi_query = True
+    
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
 
