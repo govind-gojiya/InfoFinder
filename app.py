@@ -42,6 +42,31 @@ st.set_page_config(
 # Custom CSS for dark theme
 st.markdown("""
 <style>
+    /* ========== HIDE STREAMLIT CLOUD HEADER ========== */
+    
+    /* Hide the Streamlit Cloud header bar */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        backdrop-filter: none !important;
+    }
+    
+    /* Hide the hamburger menu, fork button, and GitHub link in header */
+    .stAppDeployButton,
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    #MainMenu,
+    header .stActionButton,
+    .viewerBadge_container__r5tak,
+    .styles_viewerBadge__CvC9N {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Remove header spacing */
+    .stApp > header {
+        background-color: transparent !important;
+    }
+    
     /* ========== DARK THEME ========== */
     
     /* Main app background */

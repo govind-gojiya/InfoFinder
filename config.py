@@ -48,7 +48,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 
 # App settings
-APP_TITLE = "📚 Info Finder"
+APP_TITLE = "Info Finder"
 APP_DESCRIPTION = "Upload PDFs and chat with your documents using AI"
 MAX_FILE_SIZE_MB = 50
 
