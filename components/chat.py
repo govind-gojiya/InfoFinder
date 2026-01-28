@@ -3,6 +3,7 @@
 import streamlit as st
 from typing import Optional
 
+import config
 from models.schemas import Chat, SearchResult, MessageRole
 from services.chat_manager import ChatManager
 from services.hybrid_search import HybridSearchService
@@ -271,7 +272,7 @@ def _render_chat_input(
                 if st.session_state.get("use_reranking", True) and search_results:
                     status_placeholder.markdown("📊 *Reranking results...*")
                     search_results = reranker.rerank(
-                        prompt, search_results, top_k=5
+                        prompt, search_results, top_k=config.TOP_K_RERANK
                     )
                 
                 # Clear status
@@ -307,7 +308,7 @@ def _render_chat_input(
                 # Show sources
                 if search_results:
                     with st.expander("📚 Sources", expanded=False):
-                        for i, result in enumerate(search_results[:5], 1):
+                        for i, result in enumerate(search_results, 1):
                             st.markdown(
                                 f"**Source {i}** - {result.document.source_file} "
                                 f"(Page {result.document.page_number})"

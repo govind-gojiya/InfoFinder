@@ -22,12 +22,15 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 EMBEDDING_DIMENSION = 384
 
 # Chunking settings
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
+# Increased chunk size for better context coverage per chunk
+# Llama 3.1 on Groq has 128K context, so we have plenty of room
+# With 10 reranked chunks at 3000 chars = ~7,500 tokens (well under 128K limit)
+CHUNK_SIZE = 2500
+CHUNK_OVERLAP = 300
 
 # Search settings
-TOP_K_RETRIEVAL = 20  # Initial retrieval count
-TOP_K_RERANK = 5  # After reranking
+TOP_K_RETRIEVAL = 20  # Initial retrieval count (before reranking)
+TOP_K_RERANK = 5  # Final chunks sent to LLM (after reranking)
 RRF_K = 60  # RRF constant
 
 # Reranker model
