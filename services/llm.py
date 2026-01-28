@@ -247,14 +247,16 @@ INSTRUCTIONS:
 
 Your response:"""
 
-    def __init__(self, provider: str = None):
+    def __init__(self, provider: str = None, api_key: str = None):
         """
         Initialize the LLM service.
         
         Args:
             provider: Provider to use ("groq" or "ollama")
+            api_key: API key for the provider (required for Groq)
         """
         self.provider_name = provider or config.LLM_PROVIDER
+        self.api_key = api_key  # Store user's API key
         self._provider: Optional[BaseLLMProvider] = None
     
     @property
@@ -267,7 +269,8 @@ Your response:"""
     def _init_provider(self) -> BaseLLMProvider:
         """Initialize the appropriate LLM provider."""
         if self.provider_name == "groq":
-            return GroqProvider()
+            # Use the user's API key passed during initialization
+            return GroqProvider(api_key=self.api_key)
         elif self.provider_name == "ollama":
             return OllamaProvider()
         else:

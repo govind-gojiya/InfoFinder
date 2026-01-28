@@ -488,21 +488,23 @@ def get_reranker_service():
 
 
 def get_llm_service():
-    """Get LLM service based on current settings."""
+    """Get LLM service based on current settings using user's API key."""
     provider = st.session_state.get("llm_provider", "groq")
     
-    # Set environment variables from session state
     if provider == "groq":
+        # Get user's personal Groq API key from session
         api_key = st.session_state.get("groq_api_key", "")
-        if api_key:
-            os.environ["GROQ_API_KEY"] = api_key
+        if not api_key:
+            raise ValueError("Groq API key is required. Please check your settings.")
+        # Pass user's API key directly to the service
+        return LLMService(provider=provider, api_key=api_key)
     else:
+        # Ollama (local) - set environment variables
         ollama_url = st.session_state.get("ollama_url", config.OLLAMA_BASE_URL)
         ollama_model = st.session_state.get("ollama_model", config.OLLAMA_MODEL)
         os.environ["OLLAMA_BASE_URL"] = ollama_url
         os.environ["OLLAMA_MODEL"] = ollama_model
-    
-    return LLMService(provider=provider)
+        return LLMService(provider=provider)
 
 
 def get_hybrid_search(chat_id: str) -> HybridSearchService:
