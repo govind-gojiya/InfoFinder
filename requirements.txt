@@ -1,0 +1,35 @@
+# Streamlit UI
+streamlit>=1.31.0
+
+# PDF Processing
+pymupdf>=1.23.0
+pdfplumber>=0.10.0
+Pillow>=10.0.0
+
+# Text Processing & Chunking
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-text-splitters>=0.0.1
+
+# Embeddings
+sentence-transformers>=2.2.2
+
+# Vector Store
+chromadb>=0.4.22
+
+# Keyword Search (BM25)
+rank-bm25>=0.2.2
+
+# Reranking
+# Uses sentence-transformers cross-encoder
+
+# LLM Providers (Free Options)
+groq>=0.4.0  # Free tier with generous limits
+ollama>=0.1.6  # Local LLM option
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+uuid6>=2024.1.12
+
